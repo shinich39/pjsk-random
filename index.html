@@ -1,0 +1,325 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>index.html</title>
+    <style>
+      body{
+        font-size: 14px;
+        font-family: Arial, Helvetica, sans-serif
+      }
+      table, tr, td{
+        margin: 0;
+        padding: 0;
+      }
+      .rows{
+        display: flex;
+        flex-direction: column;
+      }
+      .cols{
+        display: flex;
+        flex-direction: row;
+      }
+      .row{
+        display: flex;
+      }
+      .col{
+        display: flex;
+      }
+      .b1{
+        border-bottom: 1px solid;
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+      .m1{
+        margin-top: 2px;
+        margin-bottom: 2px;
+      }
+      .m2{
+        margin-top: 4px;
+        margin-bottom: 4px;
+      }
+      .m3{
+        margin-top: 8px;
+        margin-bottom: 8px;
+      }
+      input[type='number']{
+        width: 64px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>pjsk-random</h1>
+
+    <a href="">github</a>
+
+    <div class="b1"></div>
+
+    <div id="filter">Loading...</div>
+
+    <div class="b1"></div>
+
+    <div>
+      <label>
+        <input name="result-type" type="radio" value="char" checked>
+        Character
+      </label>
+      <label>
+        <input name="result-type" type="radio" value="unit">
+        Unit
+      </label>
+      <label>
+        <input name="result-type" type="radio" value="music">
+        Music
+      </label>
+    </div>
+
+    <div class="b1"></div>
+
+    <div>
+      <label>
+        Size:
+        <input id="result-size" type="number" value="1" min="1">
+      </label>
+      <label>
+        Anim:
+        <input id="result-anim" type="number" value="0.39" min="0">
+      </label>
+      <button id="result-run">Run</button>
+    </div>
+
+    <div class="b1"></div>
+
+    <div id="result"></div>
+
+    <script>
+      const UNIT = {
+        light_sound: 0,
+        idol: 1,
+        street: 2,
+        theme_park: 3,
+        school_refusal: 4,
+        piapro: 5,
+      }
+
+      let data = {
+        gameCharacters: null, 
+        characterProfiles: null, 
+        unitProfiles: null, 
+        musics: null, 
+        musicVocals: null,
+      };
+
+      const loaders = {
+        "gameCharacters": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/refs/heads/main/gameCharacters.json",
+        // "characterProfiles": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/refs/heads/main/characterProfiles.json",
+        "unitProfiles": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/refs/heads/main/unitProfiles.json",
+        "musics": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/refs/heads/main/musics.json",
+        "musicVocals": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/refs/heads/main/musicVocals.json",
+      }
+
+      let loadCount = 0;
+      for (const [key, url] of Object.entries(loaders)) {
+        fetch(url)
+        .then((item) => {
+          if (!item.ok) {
+            throw new Error("gameCharacters.json not found");
+          }
+          return item.json();
+        })
+        .then((item) => {
+          data[key] = item;
+          loadCount++;
+          if (loadCount === 4) {
+            // console.log(data);
+            onLoad();
+          }
+        });
+      }
+
+      async function onLoad() {
+        // patch musics
+        data.musics.forEach((music) => {
+          const mvs = data.musicVocals.filter((mv) => mv.musicId === music.id);
+
+          music.characters = [];
+          for (const mv of mvs) {
+            music.characters = music.characters.concat(mv.characters);
+          }
+
+          music.characters = music.characters.filter((char) => char.characterType === "game_character")
+            .map((char) => char.characterId)
+            .filter((item, index, array) => array.indexOf(item) === index);
+        });
+
+        renderFilters();
+
+        document.getElementById("result-run").addEventListener("click", (e) => {
+          e.preventDefault();
+
+          let items = getItems();
+          const size = getResultSize();
+          const delay = getResultAnim();
+
+          const elem = document.getElementById("result");
+
+          let now = Date.now();
+          let timer = setInterval((item) => {
+            if (Date.now() - now > delay) {
+              clearInterval(timer);
+            }
+            items = shuffle(items);
+            elem.innerHTML = items.slice(0, size).join("<br />");
+          }, 39);
+        });
+      }
+
+      function shuffle(array) { 
+        const newArray = [];
+        for (let i = array.length - 1; i > 0; i--) { 
+          const j = Math.floor(Math.random() * (i + 1)); 
+          [array[i], array[j]] = [array[j], array[i]]; 
+        } 
+        return array; 
+      }
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function renderFilters() {
+        const target = document.getElementById("filter");
+        target.innerHTML = "";
+        const table = document.createElement("table");
+        for (const { unit, unitName } of data.unitProfiles) {
+          const unitId = unit;
+          const unitRow = document.createElement("tr");
+
+          const unitChk = createFilterCheckbox("unit", unitId, unitName);
+          const charChks = [];
+
+          const chars = data.gameCharacters.filter((item) => item.unit === unit);
+          for (const char of chars) {
+            const charChk = createFilterCheckbox(
+              "char",
+              char.id,
+              getCharName(char),
+            );
+            charChks.push(charChk);
+          }
+
+          unitChk.addEventListener("click", (e) => {
+            charChks.forEach((chk) => {
+              const ipt = chk.querySelector("input");
+              ipt.checked = e.target.checked;
+              ipt.disabled = !e.target.checked;
+            });
+          })
+
+          unitRow.append(...[unitChk, ...charChks].map((elem) => {
+            const wrapper = document.createElement("td");
+            wrapper.append(elem);
+            return wrapper;
+          }));
+          table.append(unitRow);
+        }
+        target.append(table);
+      }
+
+      function createFilterCheckbox(type, id, content) {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = true;
+        input.id = `${type}-${id}`;
+        input.value = id;
+        input.setAttribute("data-type", type);
+        label.appendChild(input);
+        label.appendChild(document.createTextNode(content));
+        return label;
+      }
+
+      function getResultType() {
+        let res;
+        document.querySelectorAll("[name=\"result-type\"]").forEach((item) => {
+          if (item.checked) {
+            res = item.value;
+          }
+        });
+
+        return res;
+      }
+
+      function getResultSize() {
+        return parseInt(document.getElementById("result-size").value);
+      }
+
+      function getResultAnim() {
+        return parseFloat(document.getElementById("result-anim").value) * 1000;
+      }
+
+      function getCharChkValues() {
+        return Array.prototype.slice.call(document.querySelectorAll("[data-type='char']"), [0])
+          .filter((item) => item.checked)
+          .map((item) => item.value);
+      }
+      
+      function getUnitChkValues() {
+        return Array.prototype.slice.call(document.querySelectorAll("[data-type='unit']"), [0])
+          .filter((item) => item.checked)
+          .map((item) => item.value);
+      }
+
+      function getCharName(char) {
+        // fix: KAITO, MEIKO
+        return char.firstName ? `${char.firstName} ${char.givenName}`: char.givenName;
+      }
+
+      function getUnitName(unit) {
+        return unit.unitName;
+      }
+
+      function getMusicName(music) {
+        return music.title;
+      }
+
+      function getItems() {
+        const type = getResultType();
+        if (type === "char") {
+          const checkedCharIds = getCharChkValues().map((item) => parseInt(item));
+          return data.gameCharacters.filter((char) => {
+            return checkedCharIds.indexOf(char.id) > -1;
+          }).map(getCharName);
+        } else if (type === "unit") {
+          const checkedUnits = getUnitChkValues();
+          return data.unitProfiles.filter((unit) => {
+            return checkedUnits.indexOf(unit.unit) > -1;
+          }).map(getUnitName);
+        } else if (type === "music") {
+          const checkedCharIds = getCharChkValues().map((item) => parseInt(item));
+          return data.musics.filter((music) => {
+            for (const charId of music.characters) {
+              if (checkedCharIds.indexOf(charId) > -1) {
+                return true;
+              }
+            } 
+            return false;
+          }).map(getMusicName);
+        } else {
+          throw new Error(`Invalid type: ${type}`);
+        }
+      }
+
+      function serializeJSON (form) {
+        const formData = new FormData(form);
+        const obj = {};
+        for (const [name, value] of formData) {
+          obj[name] = value;
+        }
+        return obj;
+      }
+    </script>
+  </body>
+</html>
