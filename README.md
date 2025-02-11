@@ -2,7 +2,7 @@
 
 Get random data of Project SEKAI dataset
 
-[RUNNNNNNNN](https://github.com/shinich39/pjsk-random)
+[RUNNNNNNNN](https://shinich39.github.io/pjsk-random/)
 
 ## Acknowledgements
 
