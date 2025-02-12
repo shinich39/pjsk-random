@@ -1,6 +1,6 @@
 # pjsk-random
 
-Get random data of Project SEKAI dataset
+Get random data from Project SEKAI dataset
 
 [RUNNNNNNNN](https://shinich39.github.io/pjsk-random/)
 

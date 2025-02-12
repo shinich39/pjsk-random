@@ -90,7 +90,7 @@
 
     <div class="b1"></div>
 
-    <div id="result"></div>
+    <ol id="result"></ol>
 
     <div class="b1"></div>
 
@@ -175,7 +175,9 @@
               clearInterval(timer);
             }
             items = shuffle(items);
-            elem.innerHTML = items.slice(0, size).join("<br />");
+            elem.innerHTML = items.slice(0, size)
+              .map((item) => `<li>${item}</li>`)
+              .join("");
           }, 39);
         });
       }
